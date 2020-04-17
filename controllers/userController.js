@@ -1,6 +1,7 @@
 const passport = require('passport');
-
+const jwt = require('jsonwebtoken');
 const { Counter } = require('../models');
+const { opts } = require('../config/passport/passport.config');
 
 const register = (req, res, next) => {
   passport.authenticate('register', async (err, user, info) => {
@@ -22,4 +23,29 @@ const register = (req, res, next) => {
   })(req, res, next);
 };
 
-module.exports = { register };
+const login = (req, res, next) => {
+  passport.authenticate('login', async (err, user, info) => {
+    try {
+      if (err) {
+        console.log(err);
+      }
+      if (info) {
+        console.log(info);
+      }
+      const superSecretKey = opts.secretOrKey;
+      const payload = {
+        id: user.id,
+        name: user.name
+      };
+      const token = jwt.sign(payload, superSecretKey, { expiresIn: 60 });
+      res.status(200).send({
+        token,
+        message: 'User found & logged in'
+      });
+    } catch (err) {
+      console.log(err);
+    }
+  })(req, res, next);
+};
+
+module.exports = { register, login };

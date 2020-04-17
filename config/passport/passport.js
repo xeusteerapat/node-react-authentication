@@ -1,7 +1,6 @@
 const passport = require('passport');
 const localStrategy = require('passport-local').Strategy;
 const JWTStrategy = require('passport-jwt').Strategy;
-const ExtractJWT = require('passport-jwt').ExtractJwt;
 const bcrypt = require('bcryptjs');
 const { opts } = require('./passport.config');
 
@@ -25,21 +24,56 @@ passport.use(
         if (existingUser) {
           console.log('Username already taken.');
           return done(null, false, { message: 'Username already taken.' });
-        } else {
-          const salt = bcrypt.genSaltSync(BCRYPT_SALT_ROUND);
-          const hashedPassword = bcrypt.hashSync(password, salt);
+        }
+        const salt = bcrypt.genSaltSync(BCRYPT_SALT_ROUND);
+        const hashedPassword = bcrypt.hashSync(password, salt);
 
-          try {
-            const user = await User.create({
-              username,
-              password: hashedPassword
-            });
-            return done(null, user);
-          } catch (err) {
-            console.log(error);
+        const user = await User.create({
+          username,
+          password: hashedPassword
+        });
+        return done(null, user);
+      } catch (err) {
+        console.log(err);
+        done(err);
+      }
+    }
+  )
+);
+
+passport.use(
+  'login',
+  new localStrategy(
+    {
+      usernameField: 'username',
+      passwordField: 'password',
+      session: false
+    },
+    async (username, password, done) => {
+      try {
+        const user = await User.findOne({ where: { username } });
+        if (!user) {
+          console.log('Username not found');
+          return done(null, false, {
+            message: 'username or password is not correct.'
+          });
+        }
+
+        bcrypt.compare(password, user.password, (err, isSuccess) => {
+          if (err) {
+            console.log(err);
             done(err);
           }
-        }
+          if (!isSuccess) {
+            console.log('Password is not matched');
+            return done(null, false, {
+              message: 'username or password is not correct.'
+            });
+          }
+
+          console.log('Login seuccessful');
+          return done(null, user);
+        });
       } catch (err) {
         console.log(err);
         done(err);
